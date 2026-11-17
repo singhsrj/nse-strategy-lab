@@ -341,3 +341,11 @@ One section per phase: the primer in plain words, what was built, and the **actu
 
 ### 60-second explanation, blanks filled
 > "…Out of sample, vol-targeted NIFTY had a max drawdown of −19.8% against −38.4% for NIFTY, while returning 8.1% a year vs 10.7%."
+
+### Live deploy (2026-11-17)
+- **URL:** https://nse-strategy-lab-c9z7.onrender.com/ (repo: https://github.com/singhsrj/nse-strategy-lab)
+- **Checked live:**
+  - `/api/strategies` out-of-sample scorecards are **identical** to the local run;
+  - `/` sets the `sid` cookie (HttpOnly, SameSite=Lax);
+  - the headless-browser test passed over `wss://`: 4 strategies played at 60× to 2020-03-31, all series 204 days, remove/add mid-replay aligned, the replay survived a page reload, no horizontal scroll on a phone, 0 console errors.
+- **Before a demo:** open the URL a minute early. The free tier sleeps when idle, and waking it takes up to about a minute (sessions reset on wake).

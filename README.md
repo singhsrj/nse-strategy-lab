@@ -2,6 +2,8 @@
 
 **A backtesting engine for NSE long/short strategies, plus a dashboard that replays them day by day.**
 
+**Live demo:** https://nse-strategy-lab-c9z7.onrender.com/ (free tier: the first visit after an idle period can take about a minute to wake up)
+
 > ⚠️ The dashboard is a **replay of historical data, not live trading**. Every number below comes from an actual run on NSE index closes from 2008-01-01 to 2026-11-13.
 
 1. A strategy is one function: given prices up to today, it returns target weights, where a negative weight is a short position.
