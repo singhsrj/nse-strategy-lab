@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NSE Strategy Lab</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e4e2dc;
+    --long: #1a8a3a; --short: #c8322b; --accent: #2a78d6; --warn-bg: #fff3d6; --warn-ink: #7a4b00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141413; --panel: #1f1f1d; --ink: #f0efec; --muted: #a3a29a; --line: #34332f;
+            --long: #3fbf63; --short: #ef5a52; --accent: #5598e7; --warn-bg: #3a2e12; --warn-ink: #f2c66b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+           padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+  h1 { font-size: 18px; margin: 0; }
+  .badge { background: var(--warn-bg); color: var(--warn-ink); font-weight: 600; font-size: 12px;
+           padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .controls label { color: var(--muted); font-size: 12px; }
+  button, input[type=date] { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+           padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 76px; }
+  button.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .date { margin-left: auto; text-align: right; }
+  .date b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .date small { display: block; color: var(--muted); font-size: 11px; }
+  main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; padding: 14px 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  aside { display: flex; flex-direction: column; gap: 10px; }
+  .card { border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 8px; padding: 10px; }
+  .card.sel { background: color-mix(in srgb, var(--c) 8%, transparent); }
+  .card .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .card .name { font-weight: 600; }
+  .tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .card p { margin: 6px 0; color: var(--muted); font-size: 12.5px; }
+  .card .bottom { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .right { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-content: start; }
+  .wide { grid-column: 1 / -1; }
+  .chartbox { position: relative; height: 380px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--c); margin-right: 6px; }
+  .neg { color: var(--short); } .pos { color: var(--long); }
+  .tablewrap { overflow-x: auto; }
+  .posgroup { margin-bottom: 12px; }
+  .posgroup .head { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px; }
+  .posgroup .head span:last-child { color: var(--muted); }
+  .bar { display: grid; grid-template-columns: 64px 1fr 52px; gap: 6px; align-items: center; font-size: 12px; margin: 2px 0; }
+  .bar .track { position: relative; height: 12px; background: color-mix(in srgb, var(--line) 50%, transparent); border-radius: 3px; }
+  .bar .track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+  .bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+  .bar .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .feed { max-height: 330px; overflow-y: auto; font-size: 12.5px; }
+  .trade { display: grid; grid-template-columns: 84px 60px 1fr auto; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .side { font-weight: 700; font-size: 11px; padding: 1px 6px; border-radius: 4px; text-align: center; color: #fff; }
+  .BUY { background: var(--long); } .COVER { background: color-mix(in srgb, var(--long) 55%, #777); }
+  .SHORT { background: var(--short); } .SELL { background: color-mix(in srgb, var(--short) 55%, #777); }
+  .muted { color: var(--muted); }
+  #status { font-size: 12px; }
+  footer { color: var(--muted); font-size: 12px; padding: 0 16px 20px; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    .right { grid-template-columns: 1fr; }
+    .chartbox { height: 280px; }
+    .date { margin-left: 0; text-align: left; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>NSE Strategy Lab</h1>
+  <span class="badge">Historical replay — not live trading</span>
+  <div class="controls">
+    <label for="start">Start</label>
+    <input type="date" id="start">
+    <button class="primary" id="play">Play</button>
+    <button id="reset">Reset</button>
+    <label>Speed (days/s)</label>
+    <span id="speeds"></span>
+  </div>
+  <div class="date"><small>Replay date</small><b id="curdate">—</b><small id="status">connecting…</small></div>
+</header>
+
+<main>
+  <aside class="panel">
+    <h2>Strategies</h2>
+    <div id="cards" style="display:flex;flex-direction:column;gap:10px"></div>
+    <p class="hint">Sharpe shown is out-of-sample (2018 onward), measured above a 6% cash rate.</p>
+  </aside>
+
+  <div class="right">
+    <section class="panel wide">
+      <h2>Equity (₹10,00,000 at start date)</h2>
+      <div class="chartbox"><canvas id="chart"></canvas></div>
+      <p class="hint" id="emptyhint">Add strategies on the left, then press Play. Try 2019-06-01 at 20 days/s to reach March 2020.</p>
+    </section>
+    <section class="panel wide">
+      <h2>Running metrics</h2>
+      <div class="tablewrap"><table id="metrics"></table></div>
+    </section>
+    <section class="panel">
+      <h2>Positions</h2>
+      <div id="positions" class="muted">No strategies selected.</div>
+    </section>
+    <section class="panel">
+      <h2>Trades</h2>
+      <div id="trades" class="feed muted">No trades yet.</div>
+    </section>
+  </div>
+</main>
+<footer>
+  Replay of backtests precomputed on daily NSE index closes (Yahoo Finance), not live market data.
+  Next-day execution, 0.10% costs, 2%/yr short carry, 6%/yr cash. Indices exclude dividends. Not investment advice.
+</footer>
+
+<script>
+const COLORS = { trend: "#2a78d6", trend_ls: "#eb6834", sector_mom: "#1baf7a",
+                 sector_ls: "#eda100", voltarget: "#e87ba4", buy_hold: "#8a8984" };
+const ASSET = { "^NSEI": "NIFTY", "^NSEBANK": "Bank", "^CNXIT": "IT", "^CNXFMCG": "FMCG", "^CNXPHARMA": "Pharma",
+                "^CNXAUTO": "Auto", "^CNXMETAL": "Metal", "^CNXENERGY": "Energy", "^CNXREALTY": "Realty",
+                "GOLDBEES.NS": "Gold" };
+const SPEEDS = [1, 5, 20, 60];
+const START_CAPITAL = 1e6;
+
+let META = {};                 // id -> strategy info from /api/strategies
+let state = { strategies: [], playing: false, speed: 5 };
+let latest = {};               // id -> latest per-strategy tick
+let trades = [];               // newest first
+let niftyBase = null;
+let chart;
+
+const $ = (id) => document.getElementById(id);
+const pct = (x, d = 1) => x == null ? "—" : (x * 100).toFixed(d) + "%";
+const rupees = (x) => "₹" + Math.round(x).toLocaleString("en-IN");
+const cls = (x) => x == null ? "" : x < 0 ? "neg" : x > 0 ? "pos" : "";
+
+// ---------- REST ----------
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify(body), credentials: "same-origin" });
+  if (!r.ok) { $("status").textContent = (await r.json()).detail || "request failed"; return; }
+  applyState(await r.json());
+}
+
+function applyState(s) {
+  const removed = state.strategies.filter((id) => !s.strategies.includes(id));
+  state = { ...state, ...s };
+  removed.forEach(dropStrategy);
+  $("start").value = state.start_date;
+  if (state.first_date) { $("start").min = state.first_date; $("start").max = state.last_date; }
+  $("curdate").textContent = state.current_date || "—";
+  $("play").textContent = state.playing ? "Pause" : "Play";
+  [...$("speeds").children].forEach((b) => b.classList.toggle("on", +b.dataset.v === state.speed));
+  renderCards();
+  schedule();
+}
+
+// ---------- chart ----------
+function makeChart() {
+  const css = getComputedStyle(document.documentElement);
+  const grid = css.getPropertyValue("--line").trim(), ink = css.getPropertyValue("--muted").trim();
+  chart = new Chart($("chart"), {
+    type: "line",
+    data: { labels: [], datasets: [] },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false, normalized: true,
+      interaction: { mode: "index", intersect: false },
+      elements: { point: { radius: 0, hoverRadius: 4 }, line: { borderWidth: 2, tension: 0 } },
+      scales: {
+        x: { ticks: { color: ink, maxTicksLimit: innerWidth < 600 ? 4 : 8, maxRotation: 0 }, grid: { color: grid } },
+        y: { ticks: { color: ink, callback: (v) => "₹" + (v / 1e5).toFixed(1) + "L" }, grid: { color: grid } },
+      },
+      plugins: {
+        legend: { position: "bottom", labels: { color: ink, boxWidth: 12, boxHeight: 2 } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${rupees(c.parsed.y)}` } },
+      },
+    },
+  });
+}
+
+function niftyDataset(values) {
+  return { id: "nifty", label: "NIFTY (rebased)", data: values, borderColor: "#b9b8b1",
+           borderDash: [4, 4], borderWidth: 1 };
+}
+
+function strategyDataset(id, values) {
+  return { id, label: META[id]?.name || id, data: values, borderColor: COLORS[id] };
+}
+
+function dataset(id) { return chart.data.datasets.find((d) => d.id === id); }
+
+function dropStrategy(id) {
+  chart.data.datasets = chart.data.datasets.filter((d) => d.id !== id);
+  delete latest[id];
+}
+
+// ---------- WebSocket ----------
+let ws, retry = 1000;
+function connect() {
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  ws.onopen = () => { retry = 1000; $("status").textContent = "connected"; };
+  ws.onmessage = (e) => handle(JSON.parse(e.data));
+  ws.onclose = () => {
+    $("status").textContent = `reconnecting in ${retry / 1000}s…`;
+    setTimeout(connect, retry);
+    retry = Math.min(retry * 2, 10000);
+  };
+}
+
+async function handle(m) {
+  if (m.error) {                       // session expired: any REST call issues a fresh cookie
+    await post("/api/session/replay", {});
+    return;                            // onclose will reconnect
+  }
+  if (m.reset) {
+    niftyBase = m.nifty.close[0];
+    chart.data.labels = [...m.nifty.dates];
+    chart.data.datasets = [niftyDataset(m.nifty.close.map((c) => c / niftyBase * START_CAPITAL))];
+    latest = {}; trades = [];
+    state.strategies = [];             // history messages re-add each one
+    applyState(m.state);
+  } else if (m.history) {
+    const h = m.history;
+    const pad = chart.data.labels.length - h.equity.length;
+    const values = Array(Math.max(pad, 0)).fill(null).concat(h.equity);
+    dropStrategy(h.id);
+    chart.data.datasets.push(strategyDataset(h.id, values));
+    latest[h.id] = h.latest;
+    trades = trades.concat(h.trades.map((t) => ({ ...t, id: h.id })))
+                   .sort((a, b) => b.date.localeCompare(a.date));
+  } else if (m.date) {
+    chart.data.labels.push(m.date);
+    dataset("nifty").data.push(m.nifty_close / niftyBase * START_CAPITAL);
+    for (const [id, s] of Object.entries(m.strategies)) {
+      if (!state.strategies.includes(id)) continue;   // removed while this tick was in flight
+      const d = dataset(id);
+      if (d) d.data.push(s.equity);
+      latest[id] = s;
+      s.trades_today.forEach((t) => trades.unshift({ ...t, id, date: m.date }));
+    }
+    state.current_date = m.date;
+    $("curdate").textContent = m.date;
+  } else if (m.done) {
+    state.playing = false;
+    $("play").textContent = "Play";
+    $("status").textContent = "replay finished: last date reached";
+  }
+  trades.length = Math.min(trades.length, 300);
+  schedule();
+}
+
+// ---------- rendering (at most once per frame) ----------
+let queued = false;
+function schedule() {
+  if (queued) return;
+  queued = true;
+  requestAnimationFrame(() => { queued = false; chart.update("none"); renderMetrics(); renderPositions(); renderTrades(); });
+}
+
+function renderCards() {
+  $("cards").innerHTML = Object.values(META).map((s) => {
+    const sel = state.strategies.includes(s.id);
+    const sh = s.out_of_sample.sharpe;
+    return `<div class="card ${sel ? "sel" : ""}" style="--c:${COLORS[s.id]}">
+      <div class="top"><span class="name">${s.name}</span><span class="tag">${s.style}</span></div>
+      <p>${s.description}</p>
+      <div class="bottom"><span>OOS Sharpe <b class="${cls(sh)}">${sh.toFixed(2)}</b></span>
+        <button data-id="${s.id}" data-act="${sel ? "remove" : "add"}">${sel ? "Remove" : "Add"}</button></div>
+    </div>`;
+  }).join("");
+  $("emptyhint").style.display = state.strategies.length ? "none" : "";
+}
+
+function renderMetrics() {
+  const ids = state.strategies.filter((id) => latest[id]);
+  if (!ids.length) { $("metrics").innerHTML = `<tr><td class="muted">No strategies selected.</td></tr>`; return; }
+  $("metrics").innerHTML = `<tr><th>Strategy</th><th>Equity</th><th>Day</th><th>Return</th><th>Sharpe</th>
+      <th>Max DD</th><th>Current DD</th><th>Gross</th><th>Net</th></tr>` +
+    ids.map((id) => {
+      const s = latest[id], r = s.running;
+      return `<tr><td><span class="swatch" style="--c:${COLORS[id]}"></span>${META[id].name}</td>
+        <td>${rupees(s.equity)}</td><td class="${cls(s.day_return)}">${pct(s.day_return, 2)}</td>
+        <td class="${cls(r.return)}">${pct(r.return)}</td>
+        <td>${r.sharpe == null ? '<span class="muted" title="needs 20 days">—</span>' : r.sharpe.toFixed(2)}</td>
+        <td class="neg">${pct(r.max_dd)}</td><td class="${cls(r.current_dd)}">${pct(r.current_dd)}</td>
+        <td>${s.gross.toFixed(2)}</td><td class="${cls(s.net)}">${s.net >= 0 ? "+" : ""}${s.net.toFixed(2)}</td></tr>`;
+    }).join("");
+}
+
+function renderPositions() {
+  const ids = state.strategies.filter((id) => latest[id]);
+  if (!ids.length) { $("positions").innerHTML = "No strategies selected."; return; }
+  $("positions").classList.remove("muted");
+  $("positions").innerHTML = ids.map((id) => {
+    const s = latest[id];
+    const bars = Object.entries(s.positions).filter(([a]) => a !== "CASH").map(([a, w]) => {
+      const width = Math.min(Math.abs(w), 1) * 50;
+      const side = w >= 0 ? `left:50%;width:${width}%;background:var(--long)`
+                          : `left:${50 - width}%;width:${width}%;background:var(--short)`;
+      return `<div class="bar"><span>${ASSET[a] || a}</span><div class="track"><div class="fill" style="${side}"></div></div>
+              <span class="v ${cls(w)}">${w > 0 ? "+" : ""}${(w * 100).toFixed(0)}%</span></div>`;
+    }).join("") || `<div class="muted" style="font-size:12px">All cash</div>`;
+    const cash = s.positions.CASH ?? 0;
+    return `<div class="posgroup"><div class="head"><span><span class="swatch" style="--c:${COLORS[id]}"></span>${META[id].name}</span>
+            <span>gross ${s.gross.toFixed(2)} · net ${s.net >= 0 ? "+" : ""}${s.net.toFixed(2)} · cash ${(cash * 100).toFixed(0)}%</span></div>${bars}</div>`;
+  }).join("");
+}
+
+function renderTrades() {
+  if (!trades.length) { $("trades").innerHTML = "No trades yet."; return; }
+  $("trades").classList.remove("muted");
+  $("trades").innerHTML = trades.slice(0, 150).map((t) =>
+    `<div class="trade"><span class="muted">${t.date}</span><span class="side ${t.side}">${t.side}</span>
+     <span><span class="swatch" style="--c:${COLORS[t.id]}"></span>${META[t.id]?.name || t.id} · ${ASSET[t.asset] || t.asset}</span>
+     <span>${(t.weight * 100).toFixed(1)}%</span></div>`).join("");
+}
+
+// ---------- controls ----------
+$("speeds").innerHTML = SPEEDS.map((v) => `<button data-v="${v}">${v}×</button>`).join(" ");
+$("speeds").onclick = (e) => { if (e.target.dataset.v) post("/api/session/replay", { speed: +e.target.dataset.v }); };
+$("play").onclick = () => post("/api/session/replay", { action: state.playing ? "pause" : "play" });
+$("reset").onclick = () => post("/api/session/replay", { action: "reset" });
+$("start").onchange = (e) => { if (e.target.value) post("/api/session/replay", { start_date: e.target.value }); };
+$("cards").onclick = (e) => {
+  const b = e.target.closest("button[data-id]");
+  if (b) post("/api/session/strategies", { [b.dataset.act]: b.dataset.id });
+};
+
+(async function init() {
+  makeChart();
+  for (const s of await (await fetch("/api/strategies")).json()) META[s.id] = s;
+  renderCards();
+  connect();
+})();
+</script>
+</body>
+</html>

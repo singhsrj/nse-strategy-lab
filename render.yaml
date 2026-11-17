@@ -1,0 +1,13 @@
+# Render Blueprint: one always-on web instance (sessions live in memory, so never scale above 1).
+services:
+  - type: web
+    name: nse-strategy-lab
+    runtime: python
+    plan: free
+    # Install deps, then precompute all backtests once so startup only loads data/results.pkl.
+    buildCommand: pip install uv && uv sync --frozen && uv run --frozen python -m engine.backtest
+    startCommand: uv run --frozen uvicorn app.main:app --host 0.0.0.0 --port $PORT --forwarded-allow-ips "*"
+    healthCheckPath: /api/strategies
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
